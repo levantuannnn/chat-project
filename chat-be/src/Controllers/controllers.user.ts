@@ -57,7 +57,7 @@ export function midelWare(req: Request, res: Response, next: NextFunction): void
         res.status(400).json({ message: "loi khong tim thay" });
         return;
     }
-    
+
     const [type, token] = parts;
     if (type !== "Bearer" || !token) {
         res.status(400).json({ message: "loi khong tim thay" });
@@ -73,7 +73,6 @@ export function midelWare(req: Request, res: Response, next: NextFunction): void
         });
     }
 }
-
 export async function register(
     req: Request<Record<string, string>, unknown, RegisterBody>,
     res: Response
@@ -134,7 +133,7 @@ export async function login(
         const { secret, algorithm } = getJwtConfig();
         const claims = { userId: user.id, role: "user" };
         const token = jwt.sign(claims, secret, {
-            expiresIn: "30s",
+            expiresIn: "15m",
             algorithm
         });
         const rawRefreshToken = jwt.sign(claims, secret, {
