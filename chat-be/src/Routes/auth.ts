@@ -5,7 +5,7 @@ import {
     midelWare,
     register,
     saveRefreshToken
-} from "../Controllers/controllers.user.js";
+} from "../controllers/controllers.user.js";
 
 const router = express.Router();
 

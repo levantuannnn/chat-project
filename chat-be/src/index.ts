@@ -1,4 +1,5 @@
 import express from "express";
+import authRouter from "./Routes/auth.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3000);
@@ -8,6 +9,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 }
 
 app.use(express.json());
+app.use("/auth", authRouter);
 
 app.get("/health", (_request, response) => {
   response.json({ status: "ok" });

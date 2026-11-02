@@ -57,13 +57,12 @@ export function midelWare(req: Request, res: Response, next: NextFunction): void
         res.status(400).json({ message: "loi khong tim thay" });
         return;
     }
-
+    
     const [type, token] = parts;
     if (type !== "Bearer" || !token) {
         res.status(400).json({ message: "loi khong tim thay" });
         return;
     }
-
     try {
         const { secret, algorithm } = getJwtConfig();
         req.user = jwt.verify(token, secret, { algorithms: [algorithm] });

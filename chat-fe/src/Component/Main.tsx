@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface AuthResponse {
     message?: string;
@@ -13,6 +14,21 @@ interface CurrentUserResponse {
     message?: string;
 }
 
+async function readJsonResponse<T>(response: Response): Promise<T> {
+    const body = await response.text();
+    if (!body.trim()) {
+        throw new Error(`Máy chủ trả về phản hồi rỗng (HTTP ${response.status}).`);
+    }
+
+    try {
+        return JSON.parse(body) as T;
+    } catch {
+        throw new Error(
+            `Máy chủ trả về dữ liệu không phải JSON (HTTP ${response.status}).`
+        );
+    }
+}
+
 export default function Main() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -20,7 +36,7 @@ export default function Main() {
     const [isRegistering, setIsRegistering] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState("");
-
+    const navigate = useNavigate();
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         setMessage("");
@@ -40,7 +56,7 @@ export default function Main() {
                     body: JSON.stringify({ email, password })
                 }
             );
-            const data = (await response.json()) as AuthResponse;
+            const data = await readJsonResponse<AuthResponse>(response);
 
             if (!response.ok) {
                 throw new Error(data.message ?? "Yêu cầu không thành công.");
@@ -67,7 +83,7 @@ export default function Main() {
                     Authorization: `Bearer ${data.accessToken}`
                 }
             });
-            const profile = (await profileResponse.json()) as CurrentUserResponse;
+            const profile = await readJsonResponse<CurrentUserResponse>(profileResponse);
 
             if (!profileResponse.ok) {
                 localStorage.removeItem("accessToken");
@@ -77,6 +93,7 @@ export default function Main() {
             setMessage(
                 `Đăng nhập thành công! User ID: ${profile.user?.userId ?? "?"}`
             );
+            navigate("/home");
         } catch (error: unknown) {
             setMessage(
                 error instanceof Error
