@@ -47,6 +47,13 @@ export default function Main() {
         }
 
         setIsSubmitting(true);
+        console.log("Auth form input", {
+            mode: isRegistering ? "register" : "login",
+            emailEntered: Boolean(email.trim()),
+            passwordEntered: Boolean(password),
+            passwordLength: password.length
+        });
+
         try {
             const response = await fetch(
                 isRegistering ? "/auth/register" : "/auth/login",
