@@ -1,10 +1,8 @@
 import type {
-    Pool,
     ResultSetHeader,
     RowDataPacket
 } from "mysql2/promise";
-
-const pool = require("../db/db.user") as Pool;
+import pool from "../db/db.user.js";
 
 interface UserRow extends RowDataPacket {
     id: number;
@@ -12,18 +10,18 @@ interface UserRow extends RowDataPacket {
     usePassword: string;
 }
 
-async function searchUser(email: string): Promise<UserRow | null> {
+export async function searchUser(email: string): Promise<UserRow | null> {
     const sql = "SELECT id, email, usePassword FROM usetime WHERE email = ?";
     const [rows] = await pool.query<UserRow[]>(sql, [email]);
     return rows[0] ?? null;
 }
 
-async function addUser(email: string, usePassword: string): Promise<ResultSetHeader> {
+export async function addUser(email: string, usePassword: string): Promise<ResultSetHeader> {
     const sql = "INSERT INTO usetime (email, usePassword) VALUES (?, ?)";
     const [result] = await pool.query<ResultSetHeader>(sql, [email, usePassword]);
     return result;
 }
-async function addrefeshToken(
+export async function addrefeshToken(
     userId: number,
     token: string,
     createAt: Date,
@@ -38,9 +36,3 @@ async function addrefeshToken(
     ]);
     return result;
 }
-
-module.exports = {
-    searchUser,
-    addUser,
-    addrefeshToken
-};

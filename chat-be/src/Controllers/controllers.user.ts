@@ -1,7 +1,11 @@
 import bcrypt from "bcrypt";
 import type { NextFunction, Request, Response } from "express";
 import jwt, { type Algorithm, type JwtPayload } from "jsonwebtoken";
-import type { ResultSetHeader } from "mysql2/promise";
+import {
+    addUser,
+    addrefeshToken,
+    searchUser
+} from "../Model/model.user.js";
 
 interface RegisterBody {
     email?: string;
@@ -17,23 +21,6 @@ interface RefreshTokenBody {
     userId?: number;
     token?: string;
 }
-
-interface UserModel {
-    searchUser(email: string): Promise<{
-        id: number;
-        email: string;
-        usePassword: string;
-    } | null>;
-    addUser(email: string, password: string): Promise<ResultSetHeader>;
-    addrefeshToken(
-        userId: number,
-        token: string,
-        createAt: Date,
-        expiresAt: Date
-    ): Promise<ResultSetHeader>;
-}
-
-const { searchUser, addUser, addrefeshToken } = require("../Model/model.user") as UserModel;
 
 declare global {
     namespace Express {
@@ -58,7 +45,7 @@ function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : "Unknown error";
 }
 
-function midelWare(req: Request, res: Response, next: NextFunction): void {
+export function midelWare(req: Request, res: Response, next: NextFunction): void {
     const headers = req.headers.authorization;
     if (!headers) {
         res.status(401).json({ message: "loi khong tim thay" });
@@ -88,7 +75,7 @@ function midelWare(req: Request, res: Response, next: NextFunction): void {
     }
 }
 
-async function register(
+export async function register(
     req: Request<Record<string, string>, unknown, RegisterBody>,
     res: Response
 ) {
@@ -126,7 +113,7 @@ async function register(
     }
 }
 
-async function login(
+export async function login(
     req: Request<Record<string, string>, unknown, LoginBody>,
     res: Response
 ) {
@@ -180,7 +167,7 @@ async function login(
     }
 }
 
-async function saveRefreshToken(
+export async function saveRefreshToken(
     req: Request<Record<string, string>, unknown, RefreshTokenBody>,
     res: Response
 ) {
@@ -210,17 +197,9 @@ async function saveRefreshToken(
     }
 }
 
-function loginSystem(req: Request, res: Response) {
+export function loginSystem(req: Request, res: Response) {
     return res.status(200).json({
         message: "Truy cập hệ thống thành công",
         user: req.user
     });
 }
-
-module.exports = {
-    midelWare,
-    register,
-    login,
-    saveRefreshToken,
-    loginSystem
-};

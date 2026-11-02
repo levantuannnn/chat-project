@@ -1,17 +1,17 @@
 import express from "express";
+import {
+    login,
+    loginSystem,
+    midelWare,
+    register,
+    saveRefreshToken
+} from "../Controllers/controllers.user.js";
 
 const router = express.Router();
-const {
-    register,
-    login,
-    saveRefreshToken,
-    midelWare,
-    loginSystem
-} = require("../Controllers/controllers.user");
 
 router.post("/register", register);
 router.post("/login", login);
 router.post("/refresh-token", saveRefreshToken);
 router.get("/me", midelWare, loginSystem);
 
-export = router;
+export default router;
