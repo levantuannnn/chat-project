@@ -8,6 +8,7 @@ import {
 } from "../model/model.user.js";
 import { bytes } from "node:stream/consumers";
 import { error } from "node:console";
+import e from "express";
 
 interface RegisterBody {
     email?: string;
@@ -47,8 +48,9 @@ function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : "Unknown error";
 }
 
-export function midelWare(req: Request, res: Response, next: NextFunction): void {
-    const headers = req.headers.authorization;
+export function myInfo(req: Request, res: Response, next: NextFunction): void {
+    const headers = req.cookies.accessToken;
+
     if (!headers) {
         res.status(401).json({ message: "loi khong tim thay" });
         return;
@@ -73,6 +75,24 @@ export function midelWare(req: Request, res: Response, next: NextFunction): void
         res.status(401).json({
             message: "Token không hợp lệ hoặc đã hết hạn"
         });
+    }
+}
+export function verifyRefreshToken(req: Request, res: Response): void {
+    const header = req.cookies.refestoken;
+    const { brearer, token } = header.split(" ");
+    if (!brearer && !token) {
+        res.status(401).json({
+            message: "khong tim thay token"
+        })
+    }
+    try {
+        const { secret, algorithm } = getJwtConfig();
+        req.user = jwt.verify(token, secret, { algorithms: [algorithm] })
+    }
+    catch {
+        res.status(401).json({
+            message: "refreshToken da het han"
+        })
     }
 }
 export async function register(
@@ -142,7 +162,12 @@ export async function login(
             expiresIn: "7d",
             algorithm
         });
+        res.cookie("refreshToken", rawRefreshToken, {
+            httpOnly: true, //ngan javascript doc cookie khong the doc thong qua document.cookie
+            secure: false, //cho phep http truy cap duoc, true thi chi co https moi truy cap duoc
+            maxAge: 7 * 24 * 60 * 60 * 1000 //thoi gian luu tai
 
+        })
         const hashedRefreshToken = await bcrypt.hash(rawRefreshToken, 10);
         const createAt = new Date();
         const expiresAt = new Date();
