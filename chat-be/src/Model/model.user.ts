@@ -1,7 +1,4 @@
-import type {
-    ResultSetHeader,
-    RowDataPacket
-} from "mysql2/promise";
+import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import pool from "../db/db.user.js";
 
 interface UserRow extends RowDataPacket {
@@ -9,7 +6,7 @@ interface UserRow extends RowDataPacket {
     email: string;
     usePassword: string;
 }
-interface refreshToken extends RowDataPacket {
+interface RefreshTokenRow extends RowDataPacket {
     token: string,
 }
 export async function searchUser(email: string): Promise<UserRow | null> {
@@ -23,23 +20,31 @@ export async function addUser(email: string, usePassword: string): Promise<Resul
     const [result] = await pool.query<ResultSetHeader>(sql, [email, usePassword]);
     return result;
 }
-export async function getRefreshToken(userId: string): Promise<refreshToken> {
-    const sql = "SELECT token usePassword FROM refestoken WHERE userId = ?";
-    const [result] = await pool.query<refreshToken[]>(sql, [userId]);
-    return result[0];
+export async function getRefreshToken(userId: number): Promise<RefreshTokenRow | null> {
+    const sql = "SELECT token FROM refestoken WHERE userId = ? ORDER BY createdAt DESC LIMIT 1";
+    const [result] = await pool.query<RefreshTokenRow[]>(sql, [userId]);
+    return result[0] ?? null;
 }
-export async function addrefeshToken(
+
+export async function replaceRefreshToken(
     userId: number,
     token: string,
     createAt: Date,
     expiresAt: Date
-): Promise<ResultSetHeader> {
-    const sql = "INSERT INTO refestoken (userId, token, expiresAt, createdAt) VALUES (?, ?, ?, ?)";
-    const [result] = await pool.query<ResultSetHeader>(sql, [
-        userId,
-        token,
-        expiresAt,
-        createAt
-    ]);
-    return result;
+): Promise<void> {
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+        await connection.query("DELETE FROM refestoken WHERE userId = ?", [userId]);
+        await connection.query(
+            "INSERT INTO refestoken (userId, token, expiresAt, createdAt) VALUES (?, ?, ?, ?)",
+            [userId, token, expiresAt, createAt]
+        );
+        await connection.commit();
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
 }

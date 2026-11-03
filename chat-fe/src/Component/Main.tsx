@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 
 interface AuthResponse {
     message?: string;
-    accessToken?: string;
 }
 
 interface CurrentUserResponse {
@@ -60,7 +59,8 @@ export default function Main() {
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify({ email, password }),
+                    credentials: "same-origin"
                 }
             );
             const data = await readJsonResponse<AuthResponse>(response);
@@ -77,23 +77,12 @@ export default function Main() {
                 return;
             }
 
-            if (!data.accessToken) {
-                throw new Error("Server không trả về access token.");
-            }
-
-            if (data.accessToken) {
-                localStorage.setItem("accessToken", data.accessToken);
-            }
-
             const profileResponse = await fetch("/auth/me", {
-                headers: {
-                    Authorization: `Bearer ${data.accessToken}`
-                }
+                credentials: "same-origin"
             });
             const profile = await readJsonResponse<CurrentUserResponse>(profileResponse);
 
             if (!profileResponse.ok) {
-                localStorage.removeItem("accessToken");
                 throw new Error(profile.message ?? "Access token không hợp lệ.");
             }
 

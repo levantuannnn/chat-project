@@ -3,13 +3,10 @@ import type { NextFunction, Request, Response } from "express";
 import jwt, { type Algorithm, type JwtPayload } from "jsonwebtoken";
 import {
     addUser,
-    addrefeshToken,
     searchUser,
-    getRefreshToken
+    getRefreshToken,
+    replaceRefreshToken
 } from "../model/model.user.js";
-import { bytes } from "node:stream/consumers";
-import { error } from "node:console";
-import e from "express";
 
 interface RegisterBody {
     email?: string;
@@ -19,11 +16,6 @@ interface RegisterBody {
 interface LoginBody {
     email?: string;
     password?: string;
-}
-
-interface RefreshTokenBody {
-    userId?: number;
-    token?: string;
 }
 
 declare global {
@@ -50,52 +42,70 @@ function getErrorMessage(error: unknown): string {
 }
 
 export function myInfo(req: Request, res: Response, next: NextFunction): void {
-    const headers = req.cookies.accessToken;
-    if (!headers) {
-        res.status(401).json({ message: "loi khong tim thay" });
+    const accessToken = req.cookies.accessToken;
+    if (!accessToken) {
+        res.status(401).json({ message: "Thiếu access token" });
         return;
     }
 
-    const parts = headers.split(" ");
-    const [type, token] = parts;
-    if (type !== "Bearer" || !token) {
-        res.status(400).json({ message: "loi khong tim thay" });
-        return;
-    }
     try {
         const { secret, algorithm } = getJwtConfig();
-        req.user = jwt.verify(token, secret, { algorithms: [algorithm] });
+        req.user = jwt.verify(accessToken, secret, { algorithms: [algorithm] });
         next();
     } catch {
-        res.status(401).json({
-            message: "Token không hợp lệ hoặc đã hết hạn"
-        });
+        res.status(401).json({ message: "Token không hợp lệ hoặc đã hết hạn" });
     }
 }
-export async function verifyRefreshToken(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const refestoken = req.cookies.refestoken;
-    const userId = req.cookies.userId;
-    const hasRefesToken = await getRefreshToken(userId);
-    const { brearer, token } = refestoken.split(" ");
-    const isMatch = await bcrypt.compare(
-        refestoken,
-        hasRefesToken.token
-    );
-    if (!isMatch) {
-        res.status(401).json({
-            message: "token khong hop le "
-        })
+export async function verifyRefreshToken(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    const refreshToken = req.cookies.refreshToken;
+
+    if (typeof refreshToken !== "string" || !refreshToken) {
+        res.status(401).json({ message: "Thiếu refresh token" });
+        return;
     }
+
+    let decoded: string | JwtPayload;
+
     try {
         const { secret, algorithm } = getJwtConfig();
-        req.user = jwt.verify(token, secret, { algorithms: [algorithm] })
-        next();
-
+        decoded = jwt.verify(refreshToken, secret, {
+            algorithms: [algorithm]
+        });
+    } catch {
+        res.status(401).json({ message: "Refresh token không hợp lệ hoặc đã hết hạn" });
+        return;
     }
-    catch {
-        res.status(401).json({
-            message: "refreshToken da het han"
-        })
+
+    if (
+        typeof decoded === "string" ||
+        typeof decoded.userId !== "number"
+    ) {
+        res.status(401).json({ message: "Payload refresh token không hợp lệ" });
+        return;
+    }
+
+    try {
+        const savedToken = await getRefreshToken(decoded.userId);
+
+        if (!savedToken) {
+            res.status(401).json({ message: "Không tìm thấy refresh token" });
+            return;
+        }
+
+        const isMatch = await bcrypt.compare(refreshToken, savedToken.token);
+        if (!isMatch) {
+            res.status(401).json({ message: "Refresh token không hợp lệ" });
+            return;
+        }
+
+        req.user = decoded;
+        next();
+    } catch (error) {
+        next(error);
     }
 }
 export async function register(
@@ -135,27 +145,37 @@ export async function register(
         });
     }
 }
-//api de cho refreshToken cung cap  cho access token 
-export async function getAccessToken(req: Request, res: Response) {
-    const { id, role } = req.user as { id: string, role: string };
+export function getAccessToken(req: Request, res: Response): void {
+    const user = req.user;
+    if (
+        !user ||
+        typeof user === "string" ||
+        typeof user.userId !== "number" ||
+        typeof user.role !== "string"
+    ) {
+        res.status(401).json({ message: "Không tìm thấy user hợp lệ" });
+        return;
+    }
+
     const { secret, algorithm } = getJwtConfig();
     const token = jwt.sign(
         {
-            id,
-            role
+            userId: user.userId,
+            role: user.role
         },
         secret,
         {
-            algorithm: algorithm,
-            expiresIn: "15m",
-
+            algorithm,
+            expiresIn: "15m"
         }
-    )
-    res.cookie("acesstoken", token, {
+    );
+    res.cookie("accessToken", token, {
         httpOnly: true,
-        secure: false,
-        maxAge: 7 * 24 * 60 * 60 * 1000
-    })
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 15 * 60 * 1000
+    });
+    res.status(200).json({ message: "Đã cấp access token mới" });
 }
 //ham dang nhap vao sinh ra 2 token accesstoken va refrestoken de luu cookie
 export async function login(
@@ -187,23 +207,24 @@ export async function login(
             expiresIn: "7d",
             algorithm
         });
-        res.cookie("refreshToken", rawRefreshToken, {
-            httpOnly: true, //ngan javascript doc cookie khong the doc thong qua document.cookie
-            secure: false, //cho phep http truy cap duoc, true thi chi co https moi truy cap duoc
-            maxAge: 7 * 24 * 60 * 60 * 1000 //thoi gian luu tai
-
-        });
-        res.cookie("acesstoken", rawRefreshToken, {
-            httpOnly: true, //ngan javascript doc cookie khong the doc thong qua document.cookie
-            secure: false, //cho phep http truy cap duoc, true thi chi co https moi truy cap duoc
-            maxAge: 7 * 24 * 60 * 60 * 1000 //thoi gian luu tai
-
-        })
         const hashedRefreshToken = await bcrypt.hash(rawRefreshToken, 10);
         const createAt = new Date();
         const expiresAt = new Date();
         expiresAt.setDate(createAt.getDate() + 7);
-        await addrefeshToken(user.id, hashedRefreshToken, createAt, expiresAt);
+        await replaceRefreshToken(user.id, hashedRefreshToken, createAt, expiresAt);
+
+        res.cookie("refreshToken", rawRefreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
+        res.cookie("accessToken", token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            maxAge: 15 * 60 * 1000
+        });
 
         return res.status(200).json({
             message: "Đăng nhập thành công!",
@@ -214,36 +235,6 @@ export async function login(
         });
     } catch (error: unknown) {
         console.error("Lỗi đăng nhập:", error);
-        return res.status(500).json({
-            message: "Lỗi server",
-            error: getErrorMessage(error)
-        });
-    }
-}
-
-export async function saveRefreshToken(
-    req: Request<Record<string, string>, unknown, RefreshTokenBody>,
-    res: Response
-) {
-    try {
-        const { userId, token } = req.body;
-        if (!userId || !token) {
-            return res.status(400).json({
-                message: "Thiếu thông tin userId hoặc token!"
-            });
-        }
-
-        const createAt = new Date();
-        const expiresAt = new Date();
-        expiresAt.setDate(createAt.getDate() + 7);
-        const result = await addrefeshToken(userId, token, createAt, expiresAt);
-
-        return res.status(200).json({
-            message: "Lưu refresh token thành công!",
-            result
-        });
-    } catch (error: unknown) {
-        console.error("Lỗi lưu token:", error);
         return res.status(500).json({
             message: "Lỗi server",
             error: getErrorMessage(error)
