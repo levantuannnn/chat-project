@@ -34,7 +34,7 @@ declare global {
 
 function getJwtConfig(): { secret: string; algorithm: Algorithm } {
     const secret = process.env.SECRET_KEY;
-    const algorithm = "HS256";
+    const algorithm = process.env.KEY;
 
     if (!secret || !algorithm) {
         throw new Error("Missing JWT configuration");
