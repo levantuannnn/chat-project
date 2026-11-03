@@ -21,6 +21,7 @@ export async function addUser(email: string, usePassword: string): Promise<Resul
     const [result] = await pool.query<ResultSetHeader>(sql, [email, usePassword]);
     return result;
 }
+
 export async function addrefeshToken(
     userId: number,
     token: string,

@@ -5,7 +5,9 @@ import {
     addUser,
     addrefeshToken,
     searchUser
-} from "../Model/model.user.js";
+} from "../model/model.user.js";
+import { bytes } from "node:stream/consumers";
+import { error } from "node:console";
 
 interface RegisterBody {
     email?: string;
@@ -31,8 +33,8 @@ declare global {
 }
 
 function getJwtConfig(): { secret: string; algorithm: Algorithm } {
-    const secret = process.env.SECREC_KEY;
-    const algorithm = process.env.KEY;
+    const secret = process.env.SECRET_KEY;
+    const algorithm = "HS256";
 
     if (!secret || !algorithm) {
         throw new Error("Missing JWT configuration");
@@ -150,7 +152,6 @@ export async function login(
         return res.status(200).json({
             message: "Đăng nhập thành công!",
             accessToken: token,
-            refreshToken: rawRefreshToken,
             data: {
                 id: user.id,
                 email: user.email
@@ -195,6 +196,12 @@ export async function saveRefreshToken(
     }
 }
 
+export function logisn(req: Request, res: Response) {
+    const { email, password } = req.body;
+    const user = searchUser(email);
+
+
+}
 export function loginSystem(req: Request, res: Response) {
     return res.status(200).json({
         message: "Truy cập hệ thống thành công",
