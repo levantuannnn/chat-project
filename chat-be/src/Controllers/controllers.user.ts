@@ -196,12 +196,6 @@ export async function saveRefreshToken(
     }
 }
 
-export function logisn(req: Request, res: Response) {
-    const { email, password } = req.body;
-    const user = searchUser(email);
-
-
-}
 export function loginSystem(req: Request, res: Response) {
     return res.status(200).json({
         message: "Truy cập hệ thống thành công",
