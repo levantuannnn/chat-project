@@ -4,7 +4,8 @@ import jwt, { type Algorithm, type JwtPayload } from "jsonwebtoken";
 import {
     addUser,
     addrefeshToken,
-    searchUser
+    searchUser,
+    getRefreshToken
 } from "../model/model.user.js";
 import { bytes } from "node:stream/consumers";
 import { error } from "node:console";
@@ -72,17 +73,25 @@ export function myInfo(req: Request, res: Response, next: NextFunction): void {
         });
     }
 }
-export function verifyRefreshToken(req: Request, res: Response): void {
-    const header = req.cookies.refestoken;
-    const { brearer, token } = header.split(" ");
-    if (!brearer && !token) {
+export async function verifyRefreshToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const refestoken = req.cookies.refestoken;
+    const userId = req.cookies.userId;
+    const hasRefesToken = await getRefreshToken(userId);
+    const { brearer, token } = refestoken.split(" ");
+    const isMatch = await bcrypt.compare(
+        refestoken,
+        hasRefesToken.token
+    );
+    if (!isMatch) {
         res.status(401).json({
-            message: "khong tim thay token"
+            message: "token khong hop le "
         })
     }
     try {
         const { secret, algorithm } = getJwtConfig();
         req.user = jwt.verify(token, secret, { algorithms: [algorithm] })
+        next();
+
     }
     catch {
         res.status(401).json({
@@ -126,6 +135,10 @@ export async function register(
             error: getErrorMessage(error)
         });
     }
+}
+//api de cho refreshToken cung cap  cho access token 
+export async function getAccessToken(req: Request, res: Response) {
+    const
 }
 
 export async function login(

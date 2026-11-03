@@ -9,7 +9,9 @@ interface UserRow extends RowDataPacket {
     email: string;
     usePassword: string;
 }
-
+interface refreshToken extends RowDataPacket {
+    token: string,
+}
 export async function searchUser(email: string): Promise<UserRow | null> {
     const sql = "SELECT id, email, usePassword FROM usetime WHERE email = ?";
     const [rows] = await pool.query<UserRow[]>(sql, [email]);
@@ -21,7 +23,11 @@ export async function addUser(email: string, usePassword: string): Promise<Resul
     const [result] = await pool.query<ResultSetHeader>(sql, [email, usePassword]);
     return result;
 }
-
+export async function getRefreshToken(userId: string): Promise<refreshToken> {
+    const sql = "SELECT token usePassword FROM refestoken WHERE userId = ?";
+    const [result] = await pool.query<refreshToken[]>(sql, [userId]);
+    return result[0];
+}
 export async function addrefeshToken(
     userId: number,
     token: string,
