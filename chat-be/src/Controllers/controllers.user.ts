@@ -57,11 +57,6 @@ export function myInfo(req: Request, res: Response, next: NextFunction): void {
     }
 
     const parts = headers.split(" ");
-    if (parts.length !== 2) {
-        res.status(400).json({ message: "loi khong tim thay" });
-        return;
-    }
-
     const [type, token] = parts;
     if (type !== "Bearer" || !token) {
         res.status(400).json({ message: "loi khong tim thay" });
