@@ -51,7 +51,6 @@ function getErrorMessage(error: unknown): string {
 
 export function myInfo(req: Request, res: Response, next: NextFunction): void {
     const headers = req.cookies.accessToken;
-
     if (!headers) {
         res.status(401).json({ message: "loi khong tim thay" });
         return;
@@ -138,9 +137,27 @@ export async function register(
 }
 //api de cho refreshToken cung cap  cho access token 
 export async function getAccessToken(req: Request, res: Response) {
-    const
-}
+    const { id, role } = req.user as { id: string, role: string };
+    const { secret, algorithm } = getJwtConfig();
+    const token = jwt.sign(
+        {
+            id,
+            role
+        },
+        secret,
+        {
+            algorithm: algorithm,
+            expiresIn: "15m",
 
+        }
+    )
+    res.cookie("acesstoken", token, {
+        httpOnly: true,
+        secure: false,
+        maxAge: 7 * 24 * 60 * 60 * 1000
+    })
+}
+//ham dang nhap vao sinh ra 2 token accesstoken va refrestoken de luu cookie
 export async function login(
     req: Request<Record<string, string>, unknown, LoginBody>,
     res: Response
@@ -175,6 +192,12 @@ export async function login(
             secure: false, //cho phep http truy cap duoc, true thi chi co https moi truy cap duoc
             maxAge: 7 * 24 * 60 * 60 * 1000 //thoi gian luu tai
 
+        });
+        res.cookie("acesstoken", rawRefreshToken, {
+            httpOnly: true, //ngan javascript doc cookie khong the doc thong qua document.cookie
+            secure: false, //cho phep http truy cap duoc, true thi chi co https moi truy cap duoc
+            maxAge: 7 * 24 * 60 * 60 * 1000 //thoi gian luu tai
+
         })
         const hashedRefreshToken = await bcrypt.hash(rawRefreshToken, 10);
         const createAt = new Date();
@@ -184,7 +207,6 @@ export async function login(
 
         return res.status(200).json({
             message: "Đăng nhập thành công!",
-            accessToken: token,
             data: {
                 id: user.id,
                 email: user.email
