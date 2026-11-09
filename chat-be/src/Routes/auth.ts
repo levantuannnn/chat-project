@@ -18,5 +18,4 @@ router.post("/logout", logout);
 router.get("/me", myInfo, loginSystem);
 router.get("/check", myInfo, checkAuth)
 router.post("/token", verifyRefreshToken, getAccessToken);
-
 export default router;
