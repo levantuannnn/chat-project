@@ -1,29 +1,25 @@
-import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import pool from "../db/db.user.js";
+import prisma from "../db/db.user.js";
 
-interface UserRow extends RowDataPacket {
-    id: number;
-    email: string;
-    usePassword: string;
-}
-interface RefreshTokenRow extends RowDataPacket {
-    token: string,
-}
-export async function searchUser(email: string): Promise<UserRow | null> {
-    const sql = "SELECT id, email, usePassword FROM usetime WHERE email = ?";
-    const [rows] = await pool.query<UserRow[]>(sql, [email]);
-    return rows[0] ?? null;
+export async function searchUser(email: string) {
+    return prisma.usetime.findUnique({
+        where: { email }
+    });
 }
 
-export async function addUser(email: string, usePassword: string): Promise<ResultSetHeader> {
-    const sql = "INSERT INTO usetime (email, usePassword) VALUES (?, ?)";
-    const [result] = await pool.query<ResultSetHeader>(sql, [email, usePassword]);
-    return result;
+export async function addUser(email: string, usePassword: string) {
+    return prisma.usetime.create({
+        data: { email, usePassword }
+    });
 }
-export async function getRefreshToken(userId: number): Promise<RefreshTokenRow | null> {
-    const sql = "SELECT token FROM refestoken WHERE userId = ? ORDER BY createdAt DESC LIMIT 1";
-    const [result] = await pool.query<RefreshTokenRow[]>(sql, [userId]);
-    return result[0] ?? null;
+
+export async function getRefreshToken(
+    userId: number
+) {
+    return prisma.refestoken.findFirst({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        select: { token: true }
+    });
 }
 
 export async function replaceRefreshToken(
@@ -32,19 +28,27 @@ export async function replaceRefreshToken(
     createAt: Date,
     expiresAt: Date
 ): Promise<void> {
-    const connection = await pool.getConnection();
-    try {
-        await connection.beginTransaction();
-        await connection.query("DELETE FROM refestoken WHERE userId = ?", [userId]);
-        await connection.query(
-            "INSERT INTO refestoken (userId, token, expiresAt, createdAt) VALUES (?, ?, ?, ?)",
-            [userId, token, expiresAt, createAt]
-        );
-        await connection.commit();
-    } catch (error) {
-        await connection.rollback();
-        throw error;
-    } finally {
-        connection.release();
+    const existingToken = await prisma.refestoken.findFirst({
+        where: { userId }
+    });
+
+    if (existingToken) {
+        await prisma.refestoken.update({
+            where: { id: existingToken.id },
+            data: {
+                token,
+                createdAt: createAt,
+                expiresAt
+            }
+        });
+    } else {
+        await prisma.refestoken.create({
+            data: {
+                userId,
+                token,
+                createdAt: createAt,
+                expiresAt
+            }
+        });
     }
 }

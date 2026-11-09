@@ -25,7 +25,13 @@ declare global {
         }
     }
 }
-
+export function checkAuth(req: Request, res: Response) {
+    return res.status(200).json({
+        success: true,
+        message: "Xác thực token thành công",
+        user: req.user
+    });
+}
 function getJwtConfig(): { secret: string; algorithm: Algorithm } {
     const secret = process.env.SECRET_KEY;
     const algorithm = process.env.KEY;
@@ -127,7 +133,7 @@ export async function register(
 
         return res.status(201).json({
             message: "Đăng ký thành công!",
-            userId: result.insertId
+            userId: result.id
         });
     } catch (error: unknown) {
         console.error("Lỗi đăng ký:", error);
@@ -175,6 +181,12 @@ export function getAccessToken(req: Request, res: Response): void {
         sameSite: "lax",
         maxAge: 15 * 60 * 1000
     });
+    res.cookie("refreshToken", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 15 * 60 * 1000
+    });
     res.status(200).json({ message: "Đã cấp access token mới" });
 }
 //ham dang nhap vao sinh ra 2 token accesstoken va refrestoken de luu cookie
@@ -189,7 +201,6 @@ export async function login(
                 message: "Vui lòng nhập đầy đủ email và password!"
             });
         }
-
         const user = await searchUser(email);
         if (!user || !(await bcrypt.compare(password, user.usePassword))) {
             return res.status(401).json({
@@ -213,12 +224,6 @@ export async function login(
         expiresAt.setDate(createAt.getDate() + 7);
         await replaceRefreshToken(user.id, hashedRefreshToken, createAt, expiresAt);
 
-        res.cookie("refreshToken", rawRefreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            maxAge: 7 * 24 * 60 * 60 * 1000
-        });
         res.cookie("accessToken", token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
@@ -247,4 +252,18 @@ export function loginSystem(req: Request, res: Response) {
         message: "Truy cập hệ thống thành công",
         user: req.user
     });
+}
+
+export function logout(_req: Request, res: Response) {
+    res.clearCookie("accessToken", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax"
+    });
+    res.clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax"
+    });
+    return res.status(200).json({ message: "Đăng xuất thành công" });
 }

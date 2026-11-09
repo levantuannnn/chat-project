@@ -1,0 +1,27 @@
+////yeu cau prisma tao prisma client
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model usetime {
+  id            Int          @id @default(autoincrement())
+  email         String       @unique @db.VarChar(255)
+  usePassword   String       @db.VarChar(255)
+  refreshTokens refestoken[]
+}
+
+model refestoken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  token     String   @db.VarChar(255)
+  expiresAt DateTime @db.DateTime(3)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  user      usetime  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
