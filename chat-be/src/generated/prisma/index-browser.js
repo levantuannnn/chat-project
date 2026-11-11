@@ -123,7 +123,12 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
 exports.Prisma.UsetimeScalarFieldEnum = {
   id: 'id',
   email: 'email',
-  usePassword: 'usePassword'
+  usePassword: 'usePassword',
+  name: 'name',
+  avatar: 'avatar',
+  isVerified: 'isVerified',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
 };
 
 exports.Prisma.RefestokenScalarFieldEnum = {
@@ -134,24 +139,79 @@ exports.Prisma.RefestokenScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.EmailOtpScalarFieldEnum = {
+  id: 'id',
+  email: 'email',
+  otp: 'otp',
+  expiresAt: 'expiresAt',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.ConversationScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  isGroup: 'isGroup',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ConversationMemberScalarFieldEnum = {
+  id: 'id',
+  conversationId: 'conversationId',
+  userId: 'userId',
+  joinedAt: 'joinedAt'
+};
+
+exports.Prisma.MessageScalarFieldEnum = {
+  id: 'id',
+  content: 'content',
+  senderId: 'senderId',
+  conversationId: 'conversationId',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
 };
 
+exports.Prisma.NullsOrder = {
+  first: 'first',
+  last: 'last'
+};
+
 exports.Prisma.usetimeOrderByRelevanceFieldEnum = {
   email: 'email',
-  usePassword: 'usePassword'
+  usePassword: 'usePassword',
+  name: 'name',
+  avatar: 'avatar'
 };
 
 exports.Prisma.refestokenOrderByRelevanceFieldEnum = {
   token: 'token'
 };
 
+exports.Prisma.EmailOtpOrderByRelevanceFieldEnum = {
+  email: 'email',
+  otp: 'otp'
+};
+
+exports.Prisma.ConversationOrderByRelevanceFieldEnum = {
+  name: 'name'
+};
+
+exports.Prisma.MessageOrderByRelevanceFieldEnum = {
+  content: 'content'
+};
+
 
 exports.Prisma.ModelName = {
   usetime: 'usetime',
-  refestoken: 'refestoken'
+  refestoken: 'refestoken',
+  EmailOtp: 'EmailOtp',
+  Conversation: 'Conversation',
+  ConversationMember: 'ConversationMember',
+  Message: 'Message'
 };
 
 /**
