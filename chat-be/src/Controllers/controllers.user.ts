@@ -118,12 +118,19 @@ export async function register(
     req: Request<Record<string, string>, unknown, RegisterBody>,
     res: Response
 ) {
-    console.log("da chay vao");
     try {
         const { email, password } = req.body;
         if (!email || !password) {
             return res.status(400).json({
                 message: "Vui lòng nhập đầy đủ email và password!"
+            });
+        }
+
+        // 1. Kiểm tra email đã tồn tại hay chưa
+        const existingUser = await searchUser(email);
+        if (existingUser) {
+            return res.status(400).json({
+                message: "Email này đã được đăng ký! Vui lòng đăng nhập hoặc sử dụng email khác."
             });
         }
 
@@ -141,7 +148,7 @@ export async function register(
             typeof error === "object" &&
             error !== null &&
             "code" in error &&
-            error.code === "ER_DUP_ENTRY"
+            (error.code === "P2002" || error.code === "ER_DUP_ENTRY")
         ) {
             return res.status(400).json({ message: "Email này đã được sử dụng!" });
         }
