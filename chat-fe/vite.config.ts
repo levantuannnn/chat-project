@@ -9,6 +9,15 @@ export default defineConfig({
       "/auth": {
         target: "http://localhost:8081",
         changeOrigin: true
+      },
+      "/chat": {
+        target: "http://localhost:8081",
+        changeOrigin: true
+      },
+      "/socket.io": {
+        target: "http://localhost:8081",
+        ws: true,
+        changeOrigin: true
       }
     }
   }
