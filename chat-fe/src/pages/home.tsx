@@ -7,6 +7,7 @@ import CreateChatModal from "../component/chat/CreateChatModal.js";
 
 export default function Home() {
     const {
+        currentUserId,
         userEmail,
         isVerified,
         isConnected,
@@ -29,6 +30,8 @@ export default function Home() {
         handleInputChange,
         handleSendMessage,
         handleCreateConversation,
+        handleReactMessage,
+        handleInsertEmoji,
         handleLogout
     } = useChat();
 
@@ -65,6 +68,8 @@ export default function Home() {
                         isGroup={activeConversation.isGroup}
                         typingUser={typingUser}
                         messagesEndRef={messagesEndRef}
+                        currentUserId={currentUserId}
+                        onReactMessage={handleReactMessage}
                     />
 
                     <ChatInput
@@ -72,6 +77,7 @@ export default function Home() {
                         activeConversationName={activeConversation.name}
                         onInputChange={handleInputChange}
                         onSendMessage={handleSendMessage}
+                        onSelectEmoji={handleInsertEmoji}
                     />
                 </div>
             </div>

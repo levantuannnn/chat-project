@@ -170,6 +170,14 @@ exports.Prisma.MessageScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.ReactionScalarFieldEnum = {
+  id: 'id',
+  messageId: 'messageId',
+  userId: 'userId',
+  emoji: 'emoji',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -204,6 +212,10 @@ exports.Prisma.MessageOrderByRelevanceFieldEnum = {
   content: 'content'
 };
 
+exports.Prisma.ReactionOrderByRelevanceFieldEnum = {
+  emoji: 'emoji'
+};
+
 
 exports.Prisma.ModelName = {
   usetime: 'usetime',
@@ -211,7 +223,8 @@ exports.Prisma.ModelName = {
   EmailOtp: 'EmailOtp',
   Conversation: 'Conversation',
   ConversationMember: 'ConversationMember',
-  Message: 'Message'
+  Message: 'Message',
+  Reaction: 'Reaction'
 };
 
 /**

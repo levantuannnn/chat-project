@@ -14,6 +14,5 @@ router.get("/conversations", myInfo, getConversations);
 router.post("/conversations", myInfo, createConversation);
 router.get("/conversations/:id/messages", myInfo, getConversationMessages);
 router.get("/message/:id", myInfo, getMessages)
-
 export default router;
 

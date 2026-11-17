@@ -29,7 +29,8 @@ export async function getMessages(req: Request, res: Response, next: NextFunctio
             return res.status(400).json({ success: false, message: "conversationId không hợp lệ" });
         }
 
-        const messages = await loadMesageModel(conversationId, 20);
+        const check = req.query.check ? Number(req.query.check) : undefined;
+        const messages = await loadMesageModel(conversationId, 20, check);
         return res.status(200).json({ success: true, data: messages });
     } catch (error) {
         next(error);

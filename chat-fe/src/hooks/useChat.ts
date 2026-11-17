@@ -100,7 +100,8 @@ export default function useChat() {
                 sender: senderName,
                 text: message.content,
                 isMe,
-                time: new Date(message.createdAt || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                time: new Date(message.createdAt || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                reactions: []
             };
 
             setConversations(prev => prev.map(conv => {
@@ -129,6 +130,26 @@ export default function useChat() {
             }
         });
 
+        // Lắng nghe cập nhật cảm xúc (Reaction) Real-time
+        socket.on("reaction_updated", (data: {
+            messageId: number;
+            conversationId: number;
+            reactions: Array<{ id?: number; userId: number; emoji: string }>;
+        }) => {
+            const convId = Number(data.conversationId);
+            const msgId = Number(data.messageId);
+
+            setConversations(prev => prev.map(conv => {
+                if (conv.id === convId) {
+                    return {
+                        ...conv,
+                        messages: conv.messages.map(m => m.id === msgId ? { ...m, reactions: data.reactions } : m)
+                    };
+                }
+                return conv;
+            }));
+        });
+
         return () => {
             socket.disconnect();
         };
@@ -151,12 +172,14 @@ export default function useChat() {
                         content: string;
                         createdAt: string;
                         sender?: { name?: string; email?: string };
+                        reactions?: Array<{ id?: number; userId: number; emoji: string }>;
                     }) => ({
                         id: msg.id,
                         sender: Number(msg.senderId) === currentUserId ? "Tôi" : (msg.sender?.name || msg.sender?.email || "Người dùng"),
                         text: msg.content,
                         isMe: Number(msg.senderId) === currentUserId,
-                        time: new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                        time: new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                        reactions: msg.reactions || []
                     }));
 
                     setConversations(prev => prev.map(conv => {
@@ -293,7 +316,25 @@ export default function useChat() {
         }
     }
 
+    // 8. Thả / Gỡ cảm xúc (Reaction)
+    function handleReactMessage(messageId: number, emoji: string) {
+        if (socketRef.current && socketRef.current.connected) {
+            socketRef.current.emit("send_reaction", {
+                messageId,
+                conversationId: activeConversation.id,
+                userId: currentUserId,
+                emoji
+            });
+        }
+    }
+
+    // 9. Chèn Emoji vào ô nhập tin nhắn
+    function handleInsertEmoji(emoji: string) {
+        setInputMessage(prev => prev + emoji);
+    }
+
     return {
+        currentUserId,
         userEmail,
         isVerified,
         isConnected,
@@ -316,6 +357,8 @@ export default function useChat() {
         handleInputChange,
         handleSendMessage,
         handleCreateConversation,
+        handleReactMessage,
+        handleInsertEmoji,
         handleLogout
     };
 }

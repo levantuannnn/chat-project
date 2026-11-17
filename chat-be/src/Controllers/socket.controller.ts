@@ -1,5 +1,5 @@
 import type { Server, Socket } from "socket.io";
-import { sendMessage } from "../model/model.chat.js";
+import { sendMessage, toggleReaction, getMessageReactions } from "../model/model.chat.js";
 
 interface SendMessagePayload {
     conversationId: number;
@@ -10,6 +10,13 @@ interface SendMessagePayload {
 interface TypingPayload {
     conversationId: number;
     userName: string;
+}
+
+interface ReactionPayload {
+    messageId: number;
+    conversationId: number;
+    userId: number;
+    emoji: string;
 }
 
 export function registerSocketHandlers(io: Server) {
@@ -77,7 +84,27 @@ export function registerSocketHandlers(io: Server) {
             socket.to(roomName).emit("user_stop_typing", payload);
         });
 
-        // 6. Ngắt kết nối
+        // 6. Xử lý thả cảm xúc (Reaction) Real-time
+        socket.on("send_reaction", async (payload: ReactionPayload) => {
+            try {
+                const { messageId, conversationId, userId, emoji } = payload;
+                if (!messageId || !conversationId || !userId || !emoji) return;
+
+                await toggleReaction(Number(messageId), Number(userId), emoji);
+                const updatedReactions = await getMessageReactions(Number(messageId));
+
+                const roomName = `room_${conversationId}`;
+                io.to(roomName).emit("reaction_updated", {
+                    messageId: Number(messageId),
+                    conversationId: Number(conversationId),
+                    reactions: updatedReactions
+                });
+            } catch (err) {
+                console.error("[Socket.io] Lỗi xử lý reaction:", err);
+            }
+        });
+
+        // 7. Ngắt kết nối
         socket.on("disconnect", () => {
             console.log(`[Socket.io] Client đã ngắt kết nối: ${socket.id}`);
         });
