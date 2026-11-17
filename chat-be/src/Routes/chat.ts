@@ -4,7 +4,8 @@ import {
     getConversations,
     getConversationMessages,
     createConversation,
-    getMessages
+    getMessages,
+    addMessage
 } from "../controllers/chat.controller.js";
 
 const router = express.Router();
@@ -14,5 +15,6 @@ router.get("/conversations", myInfo, getConversations);
 router.post("/conversations", myInfo, createConversation);
 router.get("/conversations/:id/messages", myInfo, getConversationMessages);
 router.get("/message/:id", myInfo, getMessages)
+router.post("/addMessage", myInfo, addMessage)
 export default router;
 

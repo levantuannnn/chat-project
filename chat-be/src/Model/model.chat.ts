@@ -57,8 +57,36 @@ export async function getUserConversations(userId: number) {
     });
 }
 
-export async function sendMessage(conversationId: number, senderId: number, content: string) {
+/**
+ * Hàm lưu tin nhắn mới vào cơ sở dữ liệu
+ * - Tự động kiểm tra và đảm bảo phòng chat tồn tại (tránh lỗi khóa ngoại)
+ * - Lưu nội dung tin nhắn, senderId, conversationId
+ * - Tự động cập nhật updatedAt của cuộc trò chuyện để đẩy lên đầu danh sách
+ * - Trả về tin nhắn kèm thông tin người gửi (sender) và các reactions
+ */
+export async function saveMessage(conversationId: number, senderId: number, content: string) {
     return prisma.$transaction(async (tx) => {
+        // 1. Đảm bảo cuộc trò chuyện tồn tại để tránh lỗi Foreign Key
+        const conversationExists = await tx.conversation.findUnique({
+            where: { id: conversationId }
+        });
+
+        if (!conversationExists) {
+            await tx.conversation.create({
+                data: {
+                    id: conversationId,
+                    name: `Phòng Chat #${conversationId}`,
+                    isGroup: true,
+                    members: {
+                        create: {
+                            userId: senderId
+                        }
+                    }
+                }
+            });
+        }
+
+        // 2. Lưu tin nhắn vào bảng Message
         const message = await tx.message.create({
             data: {
                 conversationId,
@@ -73,11 +101,23 @@ export async function sendMessage(conversationId: number, senderId: number, cont
                         name: true,
                         avatar: true
                     }
+                },
+                reactions: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true,
+                                avatar: true
+                            }
+                        }
+                    }
                 }
             }
         });
 
-        // Cập nhật updatedAt của cuộc trò chuyện để đẩy lên đầu
+        // 3. Cập nhật updatedAt của cuộc trò chuyện để đẩy lên đầu
         await tx.conversation.update({
             where: { id: conversationId },
             data: { updatedAt: new Date() }
@@ -86,6 +126,9 @@ export async function sendMessage(conversationId: number, senderId: number, cont
         return message;
     });
 }
+
+// Đồng thời export sendMessage để tương thích với các file đang gọi sendMessage
+export const sendMessage = saveMessage;
 export async function loadMesage(conversationId: number, limit: number = 20, check?: number) {
     const messages = await prisma.message.findMany({
         where: {

@@ -3,7 +3,8 @@ import {
     createConversation as createConvModel,
     getUserConversations as getUserConvsModel,
     getMessages as getMessagesModel,
-    loadMesage as loadMesageModel
+    loadMesage as loadMesageModel,
+    saveMessage as saveMessageModel
 } from "../model/model.chat.js";
 
 export async function getConversations(req: Request, res: Response, next: NextFunction) {
@@ -49,7 +50,18 @@ export async function getConversationMessages(req: Request, res: Response, next:
         next(error);
     }
 }
-
+export async function addMessage(req: Request, res: Response, next: NextFunction) {
+    const { conversationId, senderId, content } = req.body;
+    try {
+        const message = await saveMessageModel(conversationId, senderId, content);
+        return res.status(201).json({ success: true, data: message });
+    }
+    catch (error) {
+        res.json({
+            message: `loi ${error}`
+        })
+    }
+}
 export async function createConversation(req: Request, res: Response, next: NextFunction) {
     try {
         const { memberIds, isGroup, name } = req.body;
