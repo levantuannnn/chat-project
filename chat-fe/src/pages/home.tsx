@@ -1,9 +1,9 @@
-import useChat from "../hooks/useChat.js";
-import ChatNavbar from "../component/chat/ChatNavbar.js";
-import ChatSidebar from "../component/chat/ChatSidebar.js";
-import ChatMessageList from "../component/chat/ChatMessageList.js";
-import ChatInput from "../component/chat/ChatInput.js";
-import CreateChatModal from "../component/chat/CreateChatModal.js";
+import useChat from "../hooks/useChat";
+import ChatNavbar from "../Component/chat/ChatNavbar";
+import ChatSidebar from "../Component/chat/ChatSidebar";
+import ChatMessageList from "../Component/chat/ChatMessageList";
+import ChatInput from "../Component/chat/ChatInput";
+import CreateChatModal from "../Component/chat/CreateChatModal";
 
 export default function Home() {
     const {
