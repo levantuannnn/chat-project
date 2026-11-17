@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom"
 import Home from "../pages/home"
-import Main from "../component/main"
+import Main from "../component/main";
 import { useEffect, useState } from "react";
 
 function ProtectedHome() {
