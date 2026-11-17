@@ -58,7 +58,7 @@ export default function Home() {
                 />
 
                 {/* 2.2 Khung nội dung chat chính */}
-                <div className="flex-1 flex flex-col bg-slate-50/50 min-w-0">
+                <div className="flex-1 flex flex-col bg-slate-50/50 min-w-0 min-h-0 h-full overflow-hidden">
                     <ChatMessageList
                         messages={activeConversation.messages}
                         activeConversationName={activeConversation.name}

@@ -1,0 +1,62 @@
+services:
+  # 1. Cơ sở dữ liệu MySQL
+  mysql:
+    image: mysql:8.0
+    container_name: chat_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_DATABASE: "ChatRealTime"
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p123456"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # 2. Máy chủ Backend (Node.js + Express + Socket.IO + Prisma)
+  backend:
+    build:
+      context: ./chat-be
+      dockerfile: Dockerfile
+    container_name: chat_backend
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 8081
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: "123456"
+      DB_NAME: "ChatRealTime"
+      SECRET_KEY: "RJKeqaeQ0OB56dkApOhOS9tPfYxhfKPlgyT17RyBSEY"
+      KEY: "HS256"
+      SMTP_HOST: "smtp.gmail.com"
+      SMTP_PORT: 465
+      SMTP_USER: "lt958418@gmail.com"
+      SMTP_PASSWORD: "your_google_app_password"
+    ports:
+      - "8081:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # 3. Giao diện Frontend (React SPA) phục vụ bởi Nginx Reverse Proxy
+  frontend:
+    build:
+      context: ./chat-fe
+      dockerfile: Dockerfile
+    container_name: chat_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
+    driver: local
+

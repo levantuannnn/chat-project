@@ -30,7 +30,7 @@ export default function ChatSidebar({
         <>
             <aside
                 className={`
-                    w-72 sm:w-80 bg-white border-r border-slate-200/80 flex flex-col shrink-0 transition-transform duration-200 ease-in-out
+                    w-72 sm:w-80 bg-white border-r border-slate-200/80 flex flex-col shrink-0 min-h-0 h-full transition-transform duration-200 ease-in-out
                     fixed inset-y-16 left-0 z-30 md:static md:translate-x-0
                     ${isMobileSidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full md:translate-x-0"}
                 `}

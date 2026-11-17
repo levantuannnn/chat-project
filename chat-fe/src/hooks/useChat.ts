@@ -63,9 +63,9 @@ export default function useChat() {
         fetchUserProfile();
     }, []);
 
-    // 3. Kết nối Socket.IO Real-time
+    // 3. Kết nối Socket.IO Real-time (hỗ trợ cả dev proxy và Nginx production)
     useEffect(() => {
-        const socket = io("http://localhost:8081", {
+        const socket = io({
             withCredentials: true,
             transports: ["websocket", "polling"],
             reconnectionAttempts: 10,
@@ -134,7 +134,53 @@ export default function useChat() {
         };
     }, [currentUserId, activeConversationId]);
 
-    // 4. Chọn phòng chat khác
+    // 4. Tự động tải 20 tin nhắn từ database khi vào phòng hoặc đổi phòng chat
+    useEffect(() => {
+        async function fetchRoomMessages() {
+            try {
+                const res = await fetch(`/chat/message/${activeConversationId}`, {
+                    method: "GET",
+                    credentials: "same-origin"
+                });
+                const data = await res.json();
+
+                if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+                    const formattedMessages: MessageItem[] = data.data.map((msg: {
+                        id: number;
+                        senderId: number;
+                        content: string;
+                        createdAt: string;
+                        sender?: { name?: string; email?: string };
+                    }) => ({
+                        id: msg.id,
+                        sender: Number(msg.senderId) === currentUserId ? "Tôi" : (msg.sender?.name || msg.sender?.email || "Người dùng"),
+                        text: msg.content,
+                        isMe: Number(msg.senderId) === currentUserId,
+                        time: new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                    }));
+
+                    setConversations(prev => prev.map(conv => {
+                        if (conv.id === activeConversationId) {
+                            return {
+                                ...conv,
+                                lastMessage: formattedMessages[formattedMessages.length - 1]?.text || conv.lastMessage,
+                                messages: formattedMessages
+                            };
+                        }
+                        return conv;
+                    }));
+                }
+            } catch (error) {
+                console.error("Lỗi khi tải lịch sử tin nhắn:", error);
+            }
+        }
+
+        if (activeConversationId) {
+            fetchRoomMessages();
+        }
+    }, [activeConversationId, currentUserId]);
+
+    // 5. Chọn phòng chat khác
     function handleSelectConversation(id: number) {
         if (socketRef.current && socketRef.current.connected) {
             socketRef.current.emit("leave_room", activeConversationId);

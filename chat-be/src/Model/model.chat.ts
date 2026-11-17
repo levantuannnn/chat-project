@@ -86,7 +86,23 @@ export async function sendMessage(conversationId: number, senderId: number, cont
         return message;
     });
 }
-
+export async function loadMesage(conversationId: number, limit: number) {
+    return prisma.message.findMany({
+        where: { conversationId },
+        orderBy: { createdAt: "asc" },
+        take: limit, // Giới hạn lấy 20 tin nhắn (tương đương LIMIT 20 trong SQL)
+        include: {
+            sender: {
+                select: {
+                    id: true,
+                    email: true,
+                    name: true,
+                    avatar: true
+                }
+            }
+        }
+    });
+}
 export async function getMessages(conversationId: number, take = 50) {
     return prisma.message.findMany({
         where: { conversationId },

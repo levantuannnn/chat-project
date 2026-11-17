@@ -3,7 +3,8 @@ import { myInfo } from "../controllers/controllers.user.js";
 import {
     getConversations,
     getConversationMessages,
-    createConversation
+    createConversation,
+    getMessages
 } from "../controllers/chat.controller.js";
 
 const router = express.Router();
@@ -12,6 +13,7 @@ const router = express.Router();
 router.get("/conversations", myInfo, getConversations);
 router.post("/conversations", myInfo, createConversation);
 router.get("/conversations/:id/messages", myInfo, getConversationMessages);
+router.get("/message/:id", myInfo, getMessages)
 
 export default router;
 
