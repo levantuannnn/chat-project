@@ -14,7 +14,7 @@ const router = express.Router();
 router.get("/conversations", myInfo, getConversations);
 router.post("/conversations", myInfo, createConversation);
 router.get("/conversations/:id/messages", myInfo, getConversationMessages);
-router.get("/message/:id", myInfo, getMessages)
-router.post("/addMessage", myInfo, addMessage)
+router.get("/conversations/:id/messages", myInfo, getMessages)
+router.post("/conversations/:id/messages", myInfo, addMessage)
 export default router;
 

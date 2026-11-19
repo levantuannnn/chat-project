@@ -7,24 +7,30 @@ import CreateChatModal from "../Component/chat/CreateChatModal";
 
 export default function Home() {
     const {
+        state,
+        activeConversation,
+        refs: { messagesEndRef },
+        actions
+    } = useChat();
+    const {
         currentUserId,
         userEmail,
         isVerified,
         isConnected,
         isMobileSidebarOpen,
-        setIsMobileSidebarOpen,
         conversations,
-        activeConversation,
         searchTerm,
-        setSearchTerm,
         typingUser,
         inputMessage,
-        messagesEndRef,
         showNewChatModal,
-        setShowNewChatModal,
         newChatName,
+        isNewGroup
+    } = state;
+    const {
+        setIsMobileSidebarOpen,
+        setSearchTerm,
+        setShowNewChatModal,
         setNewChatName,
-        isNewGroup,
         setIsNewGroup,
         handleSelectConversation,
         handleInputChange,
@@ -33,7 +39,7 @@ export default function Home() {
         handleReactMessage,
         handleInsertEmoji,
         handleLogout
-    } = useChat();
+    } = actions;
 
     return (
         <div className="h-screen w-full bg-slate-50 flex flex-col overflow-hidden font-sans text-left">

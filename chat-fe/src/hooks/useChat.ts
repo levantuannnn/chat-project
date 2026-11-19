@@ -1,35 +1,21 @@
-import { useEffect, useState, useRef, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useReducer, useRef, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { io, type Socket } from "socket.io-client";
 import type { ConversationItem, MessageItem } from "../types/chat.types.js";
-import { initialConversations } from "../data/mockChat.js";
+import { chatReducer, initialChatState } from "./chatReducer.js";
 
 export default function useChat() {
     const navigate = useNavigate();
-    const [currentUserId, setCurrentUserId] = useState<number>(1);
-    const [userEmail, setUserEmail] = useState<string>("user@example.com");
-    const [isVerified, setIsVerified] = useState<boolean>(false);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-    const [isConnected, setIsConnected] = useState<boolean>(false);
-    const [typingUser, setTypingUser] = useState<string | null>(null);
-
-    // Modal tạo cuộc trò chuyện
-    const [showNewChatModal, setShowNewChatModal] = useState(false);
-    const [newChatName, setNewChatName] = useState("");
-    const [isNewGroup, setIsNewGroup] = useState(false);
+    const [state, dispatch] = useReducer(chatReducer, initialChatState);
 
     // Socket Refs
     const socketRef = useRef<Socket | null>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-    // State danh sách cuộc trò chuyện
-    const [conversations, setConversations] = useState<ConversationItem[]>(initialConversations);
-    const [activeConversationId, setActiveConversationId] = useState<number>(1);
-    const [inputMessage, setInputMessage] = useState("");
-
-    const activeConversation = conversations.find(c => c.id === activeConversationId) ?? conversations[0];
+    const activeConversation =
+        state.conversations.find(c => c.id === state.activeConversationId) ??
+        state.conversations[0];
 
     // 1. Tự động cuộn xuống cuối tin nhắn mới
     useEffect(() => {
@@ -46,15 +32,20 @@ export default function useChat() {
                 });
                 const data = await res.json();
                 if (data.success && data.user) {
-                    if (data.user.id || data.user.userId) {
-                        setCurrentUserId(Number(data.user.id || data.user.userId));
-                    }
-                    if (data.user.email) {
-                        setUserEmail(data.user.email);
-                    }
-                    if (typeof data.user.isVerified === "boolean") {
-                        setIsVerified(data.user.isVerified);
-                    }
+                    dispatch({
+                        type: "SET_USER_PROFILE",
+                        payload: {
+                            currentUserId:
+                                data.user.id || data.user.userId
+                                    ? Number(data.user.id || data.user.userId)
+                                    : undefined,
+                            userEmail: data.user.email,
+                            isVerified:
+                                typeof data.user.isVerified === "boolean"
+                                    ? data.user.isVerified
+                                    : undefined
+                        }
+                    });
                 }
             } catch (err) {
                 console.error("Không thể lấy thông tin user:", err);
@@ -63,7 +54,7 @@ export default function useChat() {
         fetchUserProfile();
     }, []);
 
-    // 3. Kết nối Socket.IO Real-time (hỗ trợ cả dev proxy và Nginx production)
+    // 3. Kết nối Socket.IO Real-time
     useEffect(() => {
         const socket = io({
             withCredentials: true,
@@ -74,12 +65,12 @@ export default function useChat() {
         socketRef.current = socket;
 
         socket.on("connect", () => {
-            setIsConnected(true);
-            socket.emit("join_room", activeConversationId);
+            dispatch({ type: "SET_CONNECTED", payload: true });
+            socket.emit("join_room", state.activeConversationId);
         });
 
         socket.on("disconnect", () => {
-            setIsConnected(false);
+            dispatch({ type: "SET_CONNECTED", payload: false });
         });
 
         // Lắng nghe tin nhắn mới
@@ -92,7 +83,7 @@ export default function useChat() {
             sender?: { name?: string; email?: string };
         }) => {
             const convId = Number(message.conversationId);
-            const isMe = Number(message.senderId) === currentUserId;
+            const isMe = Number(message.senderId) === state.currentUserId;
             const senderName = isMe ? "Tôi" : (message.sender?.name || message.sender?.email || "Người dùng");
 
             const newMsgItem: MessageItem = {
@@ -104,29 +95,25 @@ export default function useChat() {
                 reactions: []
             };
 
-            setConversations(prev => prev.map(conv => {
-                if (conv.id === convId) {
-                    if (conv.messages.some(m => m.id === newMsgItem.id)) return conv;
-                    return {
-                        ...conv,
-                        lastMessage: newMsgItem.text,
-                        messages: [...conv.messages, newMsgItem]
-                    };
+            dispatch({
+                type: "RECEIVE_MESSAGE",
+                payload: {
+                    conversationId: convId,
+                    message: newMsgItem
                 }
-                return conv;
-            }));
+            });
         });
 
         // Lắng nghe trạng thái đang gõ (typing)
         socket.on("user_typing", (data: { conversationId: number; userName: string }) => {
-            if (Number(data.conversationId) === activeConversationId) {
-                setTypingUser(data.userName);
+            if (Number(data.conversationId) === state.activeConversationId) {
+                dispatch({ type: "SET_TYPING_USER", payload: data.userName });
             }
         });
 
         socket.on("user_stop_typing", (data: { conversationId: number }) => {
-            if (Number(data.conversationId) === activeConversationId) {
-                setTypingUser(null);
+            if (Number(data.conversationId) === state.activeConversationId) {
+                dispatch({ type: "SET_TYPING_USER", payload: null });
             }
         });
 
@@ -136,30 +123,26 @@ export default function useChat() {
             conversationId: number;
             reactions: Array<{ id?: number; userId: number; emoji: string }>;
         }) => {
-            const convId = Number(data.conversationId);
-            const msgId = Number(data.messageId);
-
-            setConversations(prev => prev.map(conv => {
-                if (conv.id === convId) {
-                    return {
-                        ...conv,
-                        messages: conv.messages.map(m => m.id === msgId ? { ...m, reactions: data.reactions } : m)
-                    };
+            dispatch({
+                type: "UPDATE_REACTIONS",
+                payload: {
+                    conversationId: Number(data.conversationId),
+                    messageId: Number(data.messageId),
+                    reactions: data.reactions
                 }
-                return conv;
-            }));
+            });
         });
 
         return () => {
             socket.disconnect();
         };
-    }, [currentUserId, activeConversationId]);
+    }, [state.currentUserId, state.activeConversationId]);
 
     // 4. Tự động tải 20 tin nhắn từ database khi vào phòng hoặc đổi phòng chat
     useEffect(() => {
         async function fetchRoomMessages() {
             try {
-                const res = await fetch(`/chat/message/${activeConversationId}`, {
+                const res = await fetch(`/chat/message/${state.activeConversationId}`, {
                     method: "GET",
                     credentials: "same-origin"
                 });
@@ -175,51 +158,46 @@ export default function useChat() {
                         reactions?: Array<{ id?: number; userId: number; emoji: string }>;
                     }) => ({
                         id: msg.id,
-                        sender: Number(msg.senderId) === currentUserId ? "Tôi" : (msg.sender?.name || msg.sender?.email || "Người dùng"),
+                        sender: Number(msg.senderId) === state.currentUserId ? "Tôi" : (msg.sender?.name || msg.sender?.email || "Người dùng"),
                         text: msg.content,
-                        isMe: Number(msg.senderId) === currentUserId,
+                        isMe: Number(msg.senderId) === state.currentUserId,
                         time: new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
                         reactions: msg.reactions || []
                     }));
 
-                    setConversations(prev => prev.map(conv => {
-                        if (conv.id === activeConversationId) {
-                            return {
-                                ...conv,
-                                lastMessage: formattedMessages[formattedMessages.length - 1]?.text || conv.lastMessage,
-                                messages: formattedMessages
-                            };
+                    dispatch({
+                        type: "SET_ROOM_MESSAGES",
+                        payload: {
+                            conversationId: state.activeConversationId,
+                            messages: formattedMessages
                         }
-                        return conv;
-                    }));
+                    });
                 }
             } catch (error) {
                 console.error("Lỗi khi tải lịch sử tin nhắn:", error);
             }
         }
 
-        if (activeConversationId) {
+        if (state.activeConversationId) {
             fetchRoomMessages();
         }
-    }, [activeConversationId, currentUserId]);
+    }, [state.activeConversationId, state.currentUserId]);
 
     // 5. Chọn phòng chat khác
     function handleSelectConversation(id: number) {
         if (socketRef.current && socketRef.current.connected) {
-            socketRef.current.emit("leave_room", activeConversationId);
+            socketRef.current.emit("leave_room", state.activeConversationId);
             socketRef.current.emit("join_room", id);
         }
-        setActiveConversationId(id);
-        setIsMobileSidebarOpen(false);
-        setTypingUser(null);
+        dispatch({ type: "SELECT_CONVERSATION", payload: id });
     }
 
-    // 5. Xử lý gõ phím
+    // 6. Xử lý gõ phím
     function handleInputChange(e: ChangeEvent<HTMLInputElement>) {
-        setInputMessage(e.target.value);
+        dispatch({ type: "SET_INPUT_MESSAGE", payload: e.target.value });
 
         if (socketRef.current && socketRef.current.connected) {
-            const displayName = userEmail.split("@")[0] || "Người dùng";
+            const displayName = state.userEmail.split("@")[0] || "Người dùng";
             socketRef.current.emit("typing", {
                 conversationId: activeConversation.id,
                 userName: displayName
@@ -235,15 +213,14 @@ export default function useChat() {
         }
     }
 
-    // 6. Gửi tin nhắn Real-time
+    // 7. Gửi tin nhắn Real-time
     function handleSendMessage(e: FormEvent) {
         e.preventDefault();
-        if (!inputMessage.trim()) return;
+        const content = state.inputMessage.trim();
+        if (!content) return;
 
-        const content = inputMessage.trim();
-        setInputMessage("");
-
-        const displayName = userEmail.split("@")[0] || "Người dùng";
+        dispatch({ type: "SET_INPUT_MESSAGE", payload: "" });
+        const displayName = state.userEmail.split("@")[0] || "Người dùng";
 
         if (socketRef.current && socketRef.current.connected) {
             socketRef.current.emit("stop_typing", {
@@ -253,7 +230,7 @@ export default function useChat() {
 
             socketRef.current.emit("send_message", {
                 conversationId: activeConversation.id,
-                senderId: currentUserId,
+                senderId: state.currentUserId,
                 content
             });
         } else {
@@ -265,44 +242,48 @@ export default function useChat() {
                 isMe: true,
                 time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
             };
-            setConversations(prev => prev.map(conv => conv.id === activeConversation.id ? {
-                ...conv,
-                lastMessage: fallbackMsg.text,
-                messages: [...conv.messages, fallbackMsg]
-            } : conv));
+            dispatch({
+                type: "ADD_FALLBACK_MESSAGE",
+                payload: {
+                    conversationId: activeConversation.id,
+                    message: fallbackMsg
+                }
+            });
         }
     }
 
-    // 7. Tạo phòng chat mới
+    // 8. Tạo phòng chat mới
     function handleCreateConversation(e: FormEvent) {
         e.preventDefault();
-        if (!newChatName.trim()) return;
+        const trimmedName = state.newChatName.trim();
+        if (!trimmedName) return;
 
         const newId = Date.now();
         const newConv: ConversationItem = {
             id: newId,
-            name: newChatName.trim(),
-            isGroup: isNewGroup,
+            name: trimmedName,
+            isGroup: state.isNewGroup,
             lastMessage: "Cuộc trò chuyện mới vừa được tạo",
             messages: [
                 {
                     id: Date.now(),
                     sender: "Hệ thống",
-                    text: `Cuộc trò chuyện "${newChatName.trim()}" đã được tạo thành công!`,
+                    text: `Cuộc trò chuyện "${trimmedName}" đã được tạo thành công!`,
                     isMe: false,
                     time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
                 }
             ]
         };
 
-        setConversations(prev => [newConv, ...prev]);
-        handleSelectConversation(newId);
-        setNewChatName("");
-        setIsNewGroup(false);
-        setShowNewChatModal(false);
+        if (socketRef.current && socketRef.current.connected) {
+            socketRef.current.emit("leave_room", state.activeConversationId);
+            socketRef.current.emit("join_room", newId);
+        }
+
+        dispatch({ type: "CREATE_CONVERSATION", payload: newConv });
     }
 
-    // 8. Đăng xuất
+    // 9. Đăng xuất
     async function handleLogout() {
         try {
             await fetch("/auth/logout", {
@@ -316,42 +297,44 @@ export default function useChat() {
         }
     }
 
-    // 8. Thả / Gỡ cảm xúc (Reaction)
+    // 10. Thả / Gỡ cảm xúc (Reaction)
     function handleReactMessage(messageId: number, emoji: string) {
         if (socketRef.current && socketRef.current.connected) {
             socketRef.current.emit("send_reaction", {
                 messageId,
                 conversationId: activeConversation.id,
-                userId: currentUserId,
+                userId: state.currentUserId,
                 emoji
             });
         }
     }
 
-    // 9. Chèn Emoji vào ô nhập tin nhắn
+    // 11. Chèn Emoji vào ô nhập tin nhắn
     function handleInsertEmoji(emoji: string) {
-        setInputMessage(prev => prev + emoji);
+        dispatch({ type: "APPEND_INPUT_MESSAGE", payload: emoji });
     }
 
-    return {
-        currentUserId,
-        userEmail,
-        isVerified,
-        isConnected,
-        isMobileSidebarOpen,
+    // Helpers cập nhật state nhỏ tương thích component con
+    const setIsMobileSidebarOpen = (val: boolean | ((prev: boolean) => boolean)) =>
+        dispatch({ type: "SET_MOBILE_SIDEBAR", payload: val });
+
+    const setSearchTerm = (term: string) =>
+        dispatch({ type: "SET_SEARCH_TERM", payload: term });
+
+    const setShowNewChatModal = (show: boolean) =>
+        dispatch({ type: "SET_SHOW_NEW_CHAT_MODAL", payload: show });
+
+    const setNewChatName = (name: string) =>
+        dispatch({ type: "SET_NEW_CHAT_NAME", payload: name });
+
+    const setIsNewGroup = (isGroup: boolean) =>
+        dispatch({ type: "SET_IS_NEW_GROUP", payload: isGroup });
+
+    const actions = {
         setIsMobileSidebarOpen,
-        conversations,
-        activeConversation,
-        searchTerm,
         setSearchTerm,
-        typingUser,
-        inputMessage,
-        messagesEndRef,
-        showNewChatModal,
         setShowNewChatModal,
-        newChatName,
         setNewChatName,
-        isNewGroup,
         setIsNewGroup,
         handleSelectConversation,
         handleInputChange,
@@ -361,5 +344,11 @@ export default function useChat() {
         handleInsertEmoji,
         handleLogout
     };
-}
 
+    return {
+        state,
+        activeConversation,
+        refs: { messagesEndRef },
+        actions
+    };
+}
